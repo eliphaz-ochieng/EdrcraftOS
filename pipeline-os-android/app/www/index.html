@@ -1,0 +1,259 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Pipeline OS</title>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0F3D2E">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/native.js"></script>
+<style>
+:root{--g:#0F3D2E;--b:#F7F4EA;--a:#C9A227;--t:#1c2a24;--l:#d9d4c2}
+*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font:16px/1.4 system-ui,sans-serif;padding-bottom:72px}
+main{padding:14px;max-width:560px;margin:auto}h1,h2{font-family:Georgia,serif;margin:.2em 0}
+button,select,input,textarea{font:inherit;min-height:48px;border-radius:10px;border:1px solid var(--l);padding:0 12px;background:#fff;color:var(--t)}
+textarea{padding:10px;width:100%}input,select{width:100%}input[type=checkbox]{width:28px;min-height:28px}
+button{background:var(--g);color:var(--b);border:0;font-weight:600}button.o{background:#fff;color:var(--g);border:1.5px solid var(--g)}
+.card{background:#fff;border:1px solid var(--l);border-radius:14px;padding:12px;margin:10px 0}.dim{opacity:.55}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.row>*{flex:1 1 44%}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--g)}
+nav button{flex:1;background:none;border-radius:0;min-height:56px;opacity:.65}nav button.on{opacity:1;box-shadow:inset 0 3px var(--a)}
+.seg{display:flex;gap:4px;margin:8px 0}.seg button{flex:1;padding:0 4px;font-size:14px;background:#fff;color:var(--g);border:1.5px solid var(--g)}.seg button.on{background:var(--g);color:var(--b)}
+.v{font-family:Georgia,serif;font-size:22px;margin:20px 0 6px}.s{color:#5a6b62;font-size:14px}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--l);font-size:13px}
+.hot{background:var(--a);color:#000}.warm{background:#e9d9a0}.dial{border-left:5px solid var(--a)}
+.dots{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}.dots i{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--g);font-style:normal;text-align:center;font-size:14px;line-height:19px}.dots i.k{background:var(--g);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}.grid b{font-size:22px;display:block}
+label{display:block;margin-top:8px;font-size:14px}a{text-decoration:none}a button{width:100%}.pre{white-space:pre-wrap;margin:8px 0}.tm{font:700 34px Georgia,serif;text-align:center}input[type=time]{min-width:0}
+</style></head><body><main id="m"></main><nav id="n"></nav>
+<script>
+const $=s=>document.querySelector(s),TZ='Africa/Nairobi';
+const NAT=!!(window.NB&&NB.Capacitor.isNativePlatform());
+const go=u=>NAT?(location.href=u):window.open(u,'_blank');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ST=['new','sent','replied','checkout_sent','paid','install_booked','installed','asked_referral','no_reply','not_now','wrong_number','skip'];
+const SC={A:"Hi {name}, saw {business}. If WhatsApp enquiries go quiet, I do a one-time Customer Capture install (greeting, away message, 5 quick replies, first catalog items). Pay on Whop, I never ask for your WhatsApp code: {checkout}",B:"Pay on Whop then I send the 8 intake questions. I do not take till or Airtel pay. {checkout}",C:"{name}, quick bump. If you want the WhatsApp install, checkout is here: {checkout}",D:"{name}, if another service business is losing chats, send them this: {checkout}"};
+const INTAKE="1. Business name and what you sell or do\n2. Your top 5 services and prices\n3. Opening days and hours\n4. How you want to greet new customers\n5. Message for when you are away or closed\n6. The 5 questions customers ask most, with your answers\n7. First 10 catalogue items: name, price, photo\n8. Location, booking rules, and the number customers use";
+const DEF={cap:20,verse:true,nt:true,nmix:'both',ntimes:['06:30','09:30','12:30','16:30','20:30'],price:'',co1:'https://whop.com/checkout/plan_LfQ1OZeRjRWBa',co2:'https://whop.com/checkout/plan_lMJ7KmJADbEB0',yada:'',sc:SC,intake:INTAKE,mapH:{}};
+let db,S={...DEF},L=[],D={},M={dl:{},ps:{},marks:{},wins:[],spare:'',pend:{},done:{}},tab='home',stage='dist',started=false,sq={ch:'google',lvl:5,city:'',vert:'',pg:1,k:'q'},VIEW=[];
+const idb=()=>new Promise(r=>{const q=indexedDB.open('pipelineos',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>{db=q.result;r()}});
+const get=k=>new Promise(r=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result)});
+const put=(k,v)=>db.transaction('kv','readwrite').objectStore('kv').put(v,k);
+const save=()=>{put('S',S);put('L',L);put('days',D);put('M',M)};
+const dayN=(o=0)=>new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date(Date.now()+o*864e5)),today=()=>dayN();
+const dAgo=iso=>Math.floor((new Date(today())-new Date(iso))/864e5);
+const sent=()=>D[today()]||0,dials=()=>M.dl[today()]||0,posts=()=>M.ps[today()]||0;
+function norm(p){let d=String(p||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='254'+d.slice(1);else if(d.length==9&&/^[71]/.test(d))d='254'+d;return /^254[17]\d{8}$/.test(d)?d:''}
+const co=l=>l.edu?S.co2:S.co1;
+const fill=(t,l)=>(l=l||{},t).replace(/{name}/g,l.name||'there').replace(/{business}/g,l.business||'your business').replace(/{city}/g,l.city||'').replace(/{checkout}/g,co(l)).replace(/{price}/g,S.price||'the price shown on the checkout page');
+function scriptFor(l){const s=l.st;if(s==='paid'||s==='install_booked')return S.intake;if(s==='installed')return fill(S.sc.D,l);
+ return fill(S.sc[s==='replied'?'B':(s==='sent'||s==='checkout_sent')?'C':'A'],l)}
+const SW=/salon|barber|nail|spa|makeup|gym|plumb|electric|mechanic|garage|wash|laundry|clean|clinic|chemist|tutor|photograph|cater|tailor|hardware|bakery/i;
+function rank(l){if(!l.ph)return 9;const s=l.st;
+ if(s==='paid'||s==='install_booked')return 1;if(s==='checkout_sent')return 2;if(s==='replied')return 3;
+ if(s==='sent'&&l.sa&&Date.now()-l.sa>=864e5&&!l.bumped)return 4;
+ if(s==='new')return SW.test((l.business||'')+' '+(l.notes||''))?5:6;
+ if(s==='no_reply'&&l.at&&dAgo(l.at)>=7)return 6;return 9}
+const queue=()=>L.filter(l=>rank(l)<9).sort((a,b)=>rank(a)-rank(b));
+function streak(){let n=0,o=sent()>=S.cap?0:-1;while((D[dayN(o)]||0)>=S.cap){n++;o--}return n}
+const dots=()=>`<div class="dots">${Array.from({length:S.cap},(_,i)=>`<i class="${i<sent()?'k':''}">${i<sent()?'✓':''}</i>`).join('')}</div>`;
+const toast=(t,ms=1800)=>{const e=document.createElement('div');e.textContent=t;e.style.cssText='position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;border-radius:10px;z-index:9;width:90%;max-width:520px;text-align:center';document.body.append(e);setTimeout(()=>e.remove(),ms)};
+const copy=async t=>{try{await navigator.clipboard.writeText(t);toast('Copied')}catch{prompt('Copy:',t)}};
+const wal=(p,t)=>`https://wa.me/${p}${t?'?text='+encodeURIComponent(t):''}`;
+function setSt(l,st){l.st=st;(l.h=l.h||{})[st]=1;l.at=today();if(st==='sent')l.sa=Date.now();if(st==='paid'&&!l.pd)l.pd=today()}
+const V=[["Proverbs 13:4","The soul of the sluggard desireth, and hath nothing: but the soul of the diligent shall be made fat."],["Proverbs 10:4","The hand of the diligent maketh rich."],["Proverbs 12:24","The hand of the diligent shall bear rule."],["Proverbs 14:23","In all labour there is profit."],["Proverbs 21:5","The thoughts of the diligent tend only to plenteousness."],["Proverbs 22:29","Seest thou a man diligent in his business? he shall stand before kings."],["Proverbs 16:3","Commit thy works unto the LORD, and thy thoughts shall be established."],["Proverbs 16:9","A man's heart deviseth his way: but the LORD directeth his steps."],["Proverbs 3:5-6","Trust in the LORD with all thine heart; and lean not unto thine own understanding. In all thy ways acknowledge him, and he shall direct thy paths."],["Proverbs 18:16","A man's gift maketh room for him, and bringeth him before great men."],["Proverbs 15:22","In the multitude of counsellors they are established."],["Proverbs 11:25","The liberal soul shall be made fat: and he that watereth shall be watered also himself."],["Ecclesiastes 9:10","Whatsoever thy hand findeth to do, do it with thy might."],["Colossians 3:23","And whatsoever ye do, do it heartily, as to the Lord, and not unto men."],["Galatians 6:9","And let us not be weary in well doing: for in due season we shall reap, if we faint not."],["Luke 16:10","He that is faithful in that which is least is faithful also in much."],["Luke 6:38","Give, and it shall be given unto you."],["Matthew 5:16","Let your light so shine before men, that they may see your good works."],["Matthew 7:7","Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you."],["Philippians 4:13","I can do all things through Christ which strengtheneth me."],["Joshua 1:9","Be strong and of a good courage; be not afraid, neither be thou dismayed: for the LORD thy God is with thee whithersoever thou goest."],["Deuteronomy 31:6","Be strong and of a good courage, fear not, nor be afraid: for the LORD thy God, he it is that doth go with thee; he will not fail thee."],["Deuteronomy 8:18","Thou shalt remember the LORD thy God: for it is he that giveth thee power to get wealth."],["Psalm 90:17","Establish thou the work of our hands upon us; yea, the work of our hands establish thou it."],["Psalm 37:5","Commit thy way unto the LORD; trust also in him; and he shall bring it to pass."],["Psalm 118:24","This is the day which the LORD hath made; we will rejoice and be glad in it."],["Isaiah 41:10","Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee."],["Isaiah 40:31","They that wait upon the LORD shall renew their strength; they shall run, and not be weary; and they shall walk, and not faint."],["2 Timothy 1:7","God hath not given us the spirit of fear; but of power, and of love, and of a sound mind."],["Jeremiah 29:11","I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end."],["1 Corinthians 15:58","Be ye stedfast, unmoveable, always abounding in the work of the Lord, forasmuch as ye know that your labour is not in vain in the Lord."],["Romans 12:11","Not slothful in business; fervent in spirit; serving the Lord."],["Zechariah 4:10","For who hath despised the day of small things?"],["Nehemiah 2:20","The God of heaven, he will prosper us; therefore we his servants will arise and build."],["Psalm 23:1","The LORD is my shepherd; I shall not want."],["Joshua 1:8","Thou shalt make thy way prosperous, and then thou shalt have good success."]];
+const AF=["Twenty honest messages beat a hundred new ideas.","I send people to Whop.","A reply I reuse beats a new script.","Delivery today funds the next install.","I am not bothering people. I am offering help they need.","Every no moves me closer to a yes.","Small daily reps build a real business.","I follow up because I care about the result.","I open my queue before I open my feed.","I send my 20 before I scroll.","One paid client changes the week. I go and find them.","My work is worth paying for.","I ask clearly and let them decide.","Consistency is my edge.","A quiet chat is not a rejection. It is a follow-up waiting to happen.","I finish what I start today.","I speak with confidence and listen with patience.","The next call could be the one.","I serve first. The sale follows.","I do not wait to feel ready. I start and the feeling follows.","Discipline is a gift to my future self.","I keep my word to myself: I send my 20.","Clear offers close. I keep mine simple.","I stay calm on the call and ask the next question.","Silence after the ask is not awkward. It is respect.","Today I make one more dial than I planned.","I protect my streak. My streak protects my income.","I deliver fast, and delivery earns referrals.","Rejection is data. I take the lesson and move on.","I am building something that lasts, one message at a time.","People buy from those who follow up. I follow up.","I never take shortcuts with trust.","I focus on the next action, not the whole mountain.","My pipeline is my business. I feed it daily.","Today's effort is tomorrow's proof.","I am someone who shows up."];
+const SLIB=[
+{g:'Openers',t:'Cold opener (question first)',x:"Hi {name}, I came across {business}. Quick question: when a customer messages your WhatsApp after hours or while you are busy, does anyone reply the same day? I set up WhatsApp Business properly for service businesses (greeting, away message, quick replies, catalogue) so no enquiry goes cold. Want me to show you what it looks like?"},
+{g:'Openers',t:'Direct offer opener',x:"Hi {name}, saw {business}. If WhatsApp enquiries go quiet, I do a one-time Customer Capture install: greeting, away message, 5 quick replies and your first catalogue items. Pay on Whop, I never ask for your WhatsApp code: {checkout}"},
+{g:'Openers',t:'Reply to a question in a group or post',x:"Hey {name}, saw your question about WhatsApp customers. What usually happens is chats pile up and the ones that come in at night get missed. A greeting, an away message and saved replies fix most of it. Happy to explain how, no pressure."},
+{g:'Openers',t:'Warm intro',x:"Hi {name}, a friend in {city} thought {business} could use this. I help service businesses stop losing WhatsApp customers with a one-time setup. Can I send you a 3-line summary?"},
+{g:'Follow-ups',t:'Bump after 24 hours',x:"{name}, quick bump in case my message got buried. Still want to stop losing chats at {business}? Checkout is here when you are ready: {checkout}"},
+{g:'Follow-ups',t:'Value bump after 3 days',x:"Hi {name}, no pressure. One useful tip anyway: save your 5 most asked answers as WhatsApp quick replies (type / to use them). If you want me to set the whole thing up for {business}, I am here."},
+{g:'Follow-ups',t:'Last touch after 7 days',x:"{name}, I will close your file for now so I do not crowd your inbox. If WhatsApp enquiries start slipping, message me any time and we will fix it in a day."},
+{g:'Closing',t:'Send the checkout',x:"Great. Here is the checkout: {checkout}\nPlease pay on Whop only. Do not send till or Airtel money, and never share your WhatsApp code with anyone, including me. Once paid I will send 8 short questions, and your install is done within 24 hours of your answers."},
+{g:'Closing',t:'Confirm payment and next step',x:"Payment received, thank you {name}. Here are the 8 questions. Answer them in one message (voice notes are fine) and I will have {business} set up within 24 hours of your answers."},
+{g:'Closing',t:'Ask for a referral after install',x:"{name}, your WhatsApp for {business} is live. If you know another service business losing chats, send them this: {checkout}"},
+{g:'Objections',t:'How much?',x:"It is {price}. One-time install, and it includes the greeting, away message, 5 quick replies and your first catalogue items. Here is the checkout so you can see everything before you pay: {checkout}"},
+{g:'Objections',t:'Send me details',x:"Sure. In short: 1) greeting for new customers, 2) away message for closed hours, 3) 5 quick replies for your most asked questions, 4) first catalogue items. One-time, {price}. Want me to send the checkout?"},
+{g:'Objections',t:'Let me think about it',x:"Of course. So I can help you decide: is it the price, the timing, or you are not sure it will work for {business}?"},
+{g:'Objections',t:'Too expensive',x:"I hear you. How much is one missed customer worth to you? If the setup helps you keep even one extra booking a month, it has paid for itself. Want the checkout so you can look at it?"},
+{g:'Objections',t:'Is this legit?',x:"Fair question. Payment goes through Whop, a checkout platform, so you are not paying me directly, and I never ask for your WhatsApp code or passwords. You can open the checkout page and read it first: {checkout}"},
+{g:'Objections',t:'Can I pay by till or M-Pesa?',x:"Sorry, I only take payment on Whop, not till, Airtel or a personal number. Checkout: {checkout}"},
+{g:'Objections',t:'I am busy right now',x:"No problem. When is a better time this week for a 3-minute call? Morning or afternoon?"},
+{g:'Objections',t:'I already have WhatsApp Business',x:"Good start. Do you have a greeting, an away message, quick replies and a catalogue set up? Most people have the app but not the setup. I fill the gaps so customers get an instant, clear reply."},
+{g:'Call extras',t:'Voicemail (20 seconds)',x:"Hi {name}, this is [your name]. I help businesses in {city} stop losing WhatsApp customers. I will send you a short message on WhatsApp now. Have a great day."},
+{g:'Call extras',t:'Text right after the call',x:"Great speaking, {name}. As promised, here is the checkout: {checkout}\nAfter payment I will send 8 short questions and finish the setup within 24 hours of your answers."}
+];
+const CALL=[
+[0,'Open (20 sec)',"Hi {name}, it is [your name]. Did I catch you at a bad time? I will take 3 minutes, and you can tell me to go if it is not useful.",'Smile, slow down, ask permission.'],
+[20,'Reason (25 sec)',"I help service businesses in {city} stop losing WhatsApp customers. I saw {business} and wanted to ask you one thing.",'One sentence. Then ask.'],
+[45,'Discover (60 sec)',"1) When someone messages {business} at night or while you are busy, what happens?\n2) Roughly how many enquiries a week get answered late or not at all?\n3) If that was fixed, what would it mean for the business?",'Listen. Repeat their words back before you move on.'],
+[105,'Offer (45 sec)',"Here is what I do: a one-time install on your WhatsApp Business. A greeting, an away message, 5 quick replies for your most asked questions and your first catalogue items. It is {price}. I do the setup. You only answer 8 short questions.",'Say the price once, calmly, then stop.'],
+[150,'Ask for the sale (30 sec)',"Would you like to get this done this week? I can send the checkout to your WhatsApp right now while we are on the phone.",'After the ask, stay silent. Let them answer.'],
+[180,'Handle the objection (60 sec)',"Is it the price, the timing, or whether it will work for {business}?\n[Answer only what they say.] Does that clear it up? Then shall I send the checkout now?",'Clarify, answer, re-ask. Do not argue. See Objections tab.'],
+[240,'Confirm next step (45 sec)',"Perfect. When it is paid I will send 8 short questions. Send me the answers and it is live within 24 hours. Please never share a WhatsApp code with anyone, including me.",'Send the checkout while they are still on the line.'],
+[285,'End (15 sec)',"Thanks {name}. Watch for my message in the next minute.",'Then send the Text right after the call.']
+];
+const SCR={k:'dm',lead:''};let CT=null;
+const curLead=()=>L.find(x=>x.id==SCR.lead);
+const sfill=t=>{const l=curLead();return fill(t,l||{name:'[name]',business:'[business]',city:'[city]'})};
+const DI=()=>Math.floor((Date.now()+108e5)/864e5);
+const nidx=(n,len)=>(n+Math.floor(n/len))%len;
+function pick(day,s){const mix=S.nmix||'both',isV=mix==='verse'||(mix==='both'&&s%2===0);
+ if(isV){const n=mix==='verse'?day*5+s:day*3+(s>>1),v=V[nidx(n,V.length)];return {t:'\u{1F4D6} '+v[0],b:v[1]}}
+ const n=mix==='aff'?day*5+s:day*2+(s>>1),a=AF[nidx(n,AF.length)];
+ return {t:['Good morning. Sales mindset','Time to send','Midday reset','Dial window','Finish strong'][s],b:a+([1,3,4].includes(s)?' Tap to open your queue.':'')}}
+async function boost(){if(!NAT)return;const LN=NB.LocalNotifications;
+ try{const pd=await LN.getPending();if(pd.notifications.length)await LN.cancel({notifications:pd.notifications.map(n=>({id:n.id}))});
+  if(!S.nt)return;let p=await LN.checkPermissions();if(p.display!=='granted'){p=await LN.requestPermissions();if(p.display!=='granted')return}
+  await LN.createChannel({id:'daily',name:'Daily boost',description:'Bible verses and affirmations',importance:4,visibility:1,vibration:true});
+  const now=Date.now(),base=DI(),items=[];
+  for(let d=0;d<30;d++)for(let s=0;s<5;s++){const [h,m]=(S.ntimes[s]||'09:00').split(':').map(Number),at=new Date();at.setDate(at.getDate()+d);at.setHours(h||0,m||0,0,0);
+   if(at.getTime()<=now+5000)continue;const n=pick(base+d,s);
+   items.push({id:1000+d*5+s,title:n.t,body:n.b,channelId:'daily',smallIcon:'ic_stat_icon',schedule:{at,allowWhileIdle:true}})}
+  if(items.length)await LN.schedule({notifications:items})}catch(e){}}
+async function ntest(){if(!NAT)return toast('Reminders work in the Android app');const LN=NB.LocalNotifications;
+ try{let p=await LN.checkPermissions();if(p.display!=='granted')p=await LN.requestPermissions();if(p.display!=='granted')return toast('Allow notifications in Android settings');
+  await LN.createChannel({id:'daily',name:'Daily boost',description:'Bible verses and affirmations',importance:4,visibility:1,vibration:true});
+  const n=pick(DI(),0);await LN.schedule({notifications:[{id:1,title:n.t,body:n.b,channelId:'daily',smallIcon:'ic_stat_icon',schedule:{at:new Date(Date.now()+4000),allowWhileIdle:true}}]});toast('Test arrives in 4 seconds')}catch(e){toast('Could not schedule test')}}
+function ctick(){if(!CT)return;const e=Math.floor((Date.now()-CT.t0)/1000),el=$('#ct');if(!el)return;el.textContent=String(Math.floor(e/60)).padStart(2,'0')+':'+String(e%60).padStart(2,'0');
+ const cs=[...document.querySelectorAll('[data-t]')];let a=-1;cs.forEach((c,i)=>{if(+c.dataset.t<=e)a=i});cs.forEach((c,i)=>c.classList.toggle('dial',i===a))}
+
+// ---------- actions
+const ACT={
+ scat(_,d){SCR.k=d.v;render()},scp(_,d){copy(sfill(SLIB[+d.i].x))},ccg(){copy(co(curLead()||{}))},
+ ctime(){if(CT){clearInterval(CT.iv);CT=null;render();return}CT={t0:Date.now(),iv:setInterval(ctick,500)};render()},
+ tab(_,d){tab=d.v;render()},stage(_,d){stage=d.v;render()},
+ start(){started=true;tab='pipe';stage='dist';render()},
+ wa(l){if(!l.ph)return toast('No valid number');if(sent()>=S.cap)return toast('Daily cap reached. Come back tomorrow.');
+  const t=scriptFor(l),s=l.st;if(s==='new'||s==='no_reply')setSt(l,'sent');else if(s==='sent')l.bumped=1;
+  else if(s==='installed'){l.dsent=1;setSt(l,'asked_referral')}
+  D[today()]=sent()+1;save();go(wal(l.ph,t),'_blank');render()},
+ chat(l){go(wal(l.ph),'_blank')},
+ call(l){if(dials()>=S.cap)return toast('20 dials done today');M.dl[today()]=dials()+1;save();location.href='tel:+'+l.ph},
+ yada(l){if(!S.yada)return;M.dl[today()]=dials()+1;save();copy('+'+l.ph);location.href=S.yada.replace(/{phone}/g,l.ph)},
+ cs(l){copy(scriptFor(l))},cco(l){copy(co(l))},
+ till(l){copy(fill('Sorry, I only take payment on Whop, not till, Airtel or a personal number. Checkout: {checkout}',l))},
+ chk(l,d){l.chk=l.chk||[0,0,0,0,0];const i=+d.i;l.chk[i]=l.chk[i]?0:1;if(i==1&&l.chk[1])l.ans=Date.now();save();render()},
+ inst(l){setSt(l,'installed');save();render()},
+ qdial(_,__,b){},
+ winadd(){const w=$('#w1').value.trim(),s=$('#w2').value.trim();if(!w&&!s)return;M.wins.push({id:Date.now(),wrote:w,sent:s,res:$('#w3').value.trim(),n:0,r:0});save();render()},
+ wins(_,d){const w=M.wins.find(x=>x.id==d.w);if(!w)return;const a=d.k;
+  if(a==='n')w.n++;else if(a==='r')w.r++;else if(a==='del')M.wins=M.wins.filter(x=>x!==w);else if(a==='use'){S.sc.A=w.sent;toast('Script A updated')}save();render()},
+ spare(){M.spare=today();save();render()},
+ lvl(){sq.lvl=Math.max(3,sq.lvl-1);sq.pg=1;render()},more(){sq.pg++;render()},
+ sk(_,d){sq.k=d.v;render()},ch(_,d){sq.ch=d.v;sq.pg=1;render()},
+ qopen(_,d){const r=VIEW[+d.i];if(!r)return;if(posts()>=8&&r.p)return toast('8 threads done today. Stop here.');
+  const c=CH[sq.ch],m=M.marks[sq.ch]=M.marks[sq.ch]||{o:0,a:0,c:0,i:0,s:0};m.o++;M.ps[today()]=posts()+1;M.pend[sq.ch+'|'+r.q]=1;save();
+  if(r.p>=6)toast('Reply to a question. Drop Whop only if they asked how to get it. Then mark the thread.',15000);go(c[1](encodeURIComponent(r.q)),'_blank');render()},
+ mk(_,d){const r=VIEW[+d.i],key=sq.ch+'|'+r.q,m=M.marks[sq.ch];m[d.m]++;delete M.pend[key];M.done[key]=1;save();render()},
+ url(_,d){go(d.u,'_blank')}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const d=b.dataset,f=ACT[d.a];if(!f)return;f(L.find(x=>x.id==d.id),d,b)});
+document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
+ if(d.sl!==undefined){SCR.lead=t.value;render();return}
+ if(d.sc){S.sc[d.sc]=t.value;save();return}
+ if(d.stt){const l=L.find(x=>x.id==d.id);setSt(l,t.value);save();render();return}
+ if(d.f){const l=L.find(x=>x.id==d.id);if(!l)return;const v=t.type==='checkbox'?t.checked:t.value;l[d.f]=v;if(d.f==='phone'){l.ph=norm(v)}save();return}
+ if(d.q){sq[d.q]=t.value;sq.pg=1;render()}});
+// ---------- cards
+const btn=(a,id,t,c='',x='')=>`<button class="${c}" data-a="${a}" data-id="${id}" ${x}>${t}</button>`;
+const head=l=>`<b>${esc(l.name||l.business||'Lead')}</b> <span class="pill">${l.st}</span><div class="s">${esc(l.business)} ${esc(l.city)} · ${l.ph?'+'+l.ph:'no valid number'}</div>`;
+const sel=l=>`<select data-stt="1" data-id="${l.id}" style="margin-top:8px">${ST.map(s=>`<option ${s==l.st?'selected':''}>${s}</option>`).join('')}</select>`;
+function card(l,s){let h=`<div class="card ${s==='dist'?'dial':''}">${head(l)}`;
+ if(s==='dev'){h+=['name','business','phone','city','notes'].map(k=>`<label>${k}<input data-id="${l.id}" data-f="${k}" value="${esc(k=='phone'?(l.ph?'+'+l.ph:''):l[k])}"></label>`).join('')+`<label><input type="checkbox" data-id="${l.id}" data-f="edu" ${l.edu?'checked':''}> Education lead (uses Playbook link)</label><div class="s" style="margin-top:6px">${esc(scriptFor(l))}</div>`}
+ else if(s==='dist'){h+=`<div class="row">${btn('wa',l.id,'WhatsApp')}${btn('call',l.id,'Call','o')}${btn('chat',l.id,'Open chat','o')}${S.yada?btn('yada',l.id,'Yadaphone','o'):''}${btn('cs',l.id,'Copy script','o')}${btn('cco',l.id,'Copy checkout','o')}${btn('till',l.id,'They offered till / Airtel','o')}</div>${sel(l)}`}
+ else if(s==='del'){const c=l.chk||[0,0,0,0,0],N=['Paid','8 answers in','15-min call done','Pack filled','Installed'];
+  const due=l.ans?Math.max(0,Math.ceil((l.ans+864e5-Date.now())/36e5)):null;
+  h+=N.map((n,i)=>`<div class="row" style="align-items:center"><button class="${c[i]?'':'o'}" data-a="chk" data-id="${l.id}" data-i="${i}" style="flex:0 0 48px">${c[i]?'✓':''}</button><span style="flex:1 1 60%">${n}</span></div>`).join('')+(due!==null&&!c[4]?`<div class="s">Install due within ${due}h of the answers</div>`:'')+
+  `<div class="row">${btn('cs',l.id,'Copy 8 questions','o')}${l.st==='installed'?btn('wa',l.id,'Send script D once'):btn('inst',l.id,'Mark installed')}</div><div class="s">Never ask for WhatsApp codes or Google passwords.</div>`}
+ else h+=`<div class="s">${l.pd?'Paid '+l.pd+' · ':''}${l.st}${l.dsent?' · referral asked':''}</div>`;
+ return h+'</div>'}
+// ---------- search directory
+const CH={google:['Google',q=>`https://www.google.com/search?q=${q}&tbs=qdr:d`,2],x:['X live',q=>`https://x.com/search?q=${q}&f=live`,3],yt:['YouTube',q=>`https://www.youtube.com/results?search_query=${q}&sp=CAI%253D`,1],fbp:['FB posts',q=>`https://www.facebook.com/search/posts?q=${q}`,2],tt:['TikTok',q=>`https://www.tiktok.com/search?q=${q}`,0]};
+const CITIES=['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Ruiru','Kenya'],VERTS='salon,barber,nails,spa,makeup,gym,plumber,electrician,mechanic,car wash,laundry,cleaner,clinic,chemist,tutor,photographer,caterer,tailor,hardware,bakery'.split(',');
+const TPL=[['{v} WhatsApp not answering {c}',2,2],['{v} "losing customers" WhatsApp {c}',2,2],['"set up WhatsApp catalogue" {v} {c}',3,2],['"Google Business Profile" {v} {c}',1,2],['"need someone" WhatsApp {v} {c}',3,2],['"who can" "Google reviews" {v} {c}',3,2],['{v} "missed calls" WhatsApp {c}',2,2],['"WhatsApp Business" greeting {c}',1,1],['"clients text and disappear" {v} {c}',2,2],['"booking on WhatsApp" {v} {c}',1,2]];
+const EX=['"WhatsApp Business" Kenya "not getting replies"','"set up WhatsApp catalogue" Nairobi','"Google Business Profile" salon Kenya','plumber OR electrician "WhatsApp" (Nairobi OR Mombasa)','"losing customers" WhatsApp Kenya','"need someone to set up" WhatsApp Nairobi','"who does" "WhatsApp for business" Kenya','gym OR salon "Google reviews" Nairobi','car wash "customers don\'t come back" Nairobi','"quick replies" WhatsApp Business Kenya','"away message" WhatsApp Business','"catalogue" salon Nairobi WhatsApp','clinic "patients WhatsApp" Nairobi','tutor "parents WhatsApp" Kenya','photographer "enquiries go cold" Nairobi','"I need a receptionist for WhatsApp" Kenya','"someone to handle my WhatsApp" Nairobi','"CRM for small business" Kenya WhatsApp','"follow up sheet" leads Kenya','"Google maps" salon no reviews Nairobi'];
+const WARM=[['small business Nairobi WhatsApp',5],['"get more clients" salon Kenya',4],['"get more clients" plumber Kenya',4],['freelancer Kenya "clients don\'t reply"',4],['"M-Pesa" booking WhatsApp salon',4],['"open a salon" Nairobi WhatsApp',4],['"side hustle" salon Kenya',3]];
+const GROUPS='Kenya freelancers,Nairobi small business,Kenya salon owners,Nairobi salon owners,Kenya plumbers,Kenya electricians,Kenya gym owners,Mombasa business,Kisumu business,Kenya car wash,WhatsApp for business Kenya,Google My Business Kenya,Kenya photographers,Kenya caterers,Nairobi makeup artists'.split(',');
+const XP=['("looking for" OR "need" OR "who does") (WhatsApp) (Kenya OR Nairobi)','("not answering" OR "don\'t reply") (WhatsApp) (salon OR gym OR plumber)','("set up" OR install) ("WhatsApp Business" OR catalogue) (Nairobi OR Kenya)','("Google Business" OR "Google reviews") (salon OR gym) (Kenya OR Nairobi)'];
+const YT=['WhatsApp Business Kenya tutorial','Google Business Profile Kenya','how to get salon clients Nairobi','plumber get more jobs Kenya'];
+let QR=null;function qrows(){if(QR)return QR;QR=[];
+ EX.forEach(q=>QR.push({q,p:/need|who does|someone|set up/i.test(q)?7:6}));WARM.forEach(([q,p])=>QR.push({q,p}));
+ VERTS.forEach(v=>CITIES.forEach(c=>TPL.forEach(([t,i,f])=>QR.push({q:t.replace(/{v}/g,v).replace(/{c}/g,c),p:i+2+f,v,c}))));return QR}
+const phat=p=>p>=6?['about 4 in 10 of these threads look like a buyer',.45]:p>=4?['about 1 in 4 of these threads look like a buyer',.25]:p==3?['about 1 in 10 of these threads look like a buyer',.10]:['rarely a buyer',.02];
+const hitRate=ch=>{const m=M.marks[ch];return m&&m.a+m.c+m.i+m.s>=10?(m.a+m.c)/m.o:null};
+function sscore(r){const h=hitRate(sq.ch),pn=r.p/7;return h==null?pn:.6*pn+.4*h}
+// ---------- pages
+const R={
+home(){const i=nidx(DI(),V.length);
+ if(sent()>=S.cap)return `<h1>Done for today</h1>${dots()}<p class="v">${S.cap} messages sent.</p><p>Streak: ${streak()} day(s). Come back tomorrow.</p>`;
+ return `${S.verse?`<p class="v">"${V[i][1]}"</p><div class="s">${V[i][0]}</div>`:''}<p class="v" style="font-size:19px">${AF[nidx(DI(),AF.length)]}</p>${dots()}<button style="width:100%" data-a="start">Start</button><p class="s">Streak ${streak()} day(s)</p>`},
+pipe(){const seg=[['dev','Develop'],['dist','Distribute'],['del','Deliver'],['txn','Transaction']];
+ let h=`<h2>Pipeline</h2><div class="seg">${seg.map(([k,n])=>`<button class="${stage==k?'on':''}" data-a="stage" data-v="${k}">${n}</button>`).join('')}</div>`;
+ if(stage==='dist')h+=`${dots()}<p class="s">Sends ${sent()}/${S.cap} · Dials ${dials()}/${S.cap} · Streak ${streak()}</p>${R.imp()}`+(queue().slice(0,20).map(l=>card(l,'dist')).join('')||'<p class="s">Queue empty. Import leads, or open Search and tap Fill spare hour.</p>')+`<details><summary>All leads (${L.length})</summary>${L.slice(0,60).map(l=>card(l,'dist')).join('')}</details>`;
+ else if(stage==='dev')h+=['A','B','C','D'].map(k=>`<div class="card"><b>Script ${k}</b><textarea rows="4" data-sc="${k}">${esc(S.sc[k])}</textarea></div>`).join('')+`<p class="s">Use {name} {business} {city} {checkout}. Edits update every unsent lead.</p>`+L.slice(0,40).map(l=>card(l,'dev')).join('');
+ else if(stage==='del'){const x=L.filter(l=>l.st==='paid'||l.st==='install_booked'||(l.st==='installed'&&!l.dsent));h+=x.map(l=>card(l,'del')).join('')||'<p class="s">Nobody to deliver to yet.</p>'}
+ else h+=R.txn();return h},
+txn(){const c=k=>L.filter(l=>l.h&&l.h[k]).length,q=queue()[0],T={1:'Deliver: finish the install for',2:'Follow up checkout with',3:'Send the checkout to',4:'One bump to',5:'First WhatsApp to',6:'First WhatsApp to'};
+ return `<div class="card"><div class="grid">${[['sent','sent'],['replies','replied'],['checkouts','checkout_sent'],['paid','paid'],['installed','installed']].map(([n,k])=>`<div><b>${c(k)}</b><span class="s">${n}</span></div>`).join('')}</div></div>
+ <div class="card"><b>Hottest next action</b><p>${q?`${T[rank(q)]} ${esc(q.name||q.business)}`:'Queue is empty. Fill a spare hour in Search.'}</p></div>`+
+ L.filter(l=>['paid','install_booked','installed','asked_referral'].includes(l.st)).map(l=>card(l,'txn')).join('')},
+imp(){return `<div class="card"><b>Import CSV or Excel</b><input type="file" id="f" accept=".csv,.xls,.xlsx,text/csv" onchange="load(this.files[0])"><div id="map"></div></div>
+ <div class="card dial"><b>Quick dial any number</b><input id="qd" inputmode="tel" placeholder="07xx / +2547xx" oninput="qdial()"><div id="qr" class="row"></div></div>`},
+search(){const lock=queue().some(l=>rank(l)<=4)&&M.spare!==today();
+ if(lock)return `<h2>Search</h2><div class="card"><p>Work the queue first: paid, checkouts, replies and bumps come before new threads.</p><button style="width:100%" data-a="spare">Fill spare hour</button></div>`;
+ let h=`<h2>Search</h2><p class="s">Threads today ${posts()}/8. Open, reply as a person, then mark it.</p><div class="seg">${[['q','Queries'],['g','Groups'],['x','X packs'],['y','YouTube']].map(([k,n])=>`<button class="${sq.k==k?'on':''}" data-a="sk" data-v="${k}">${n}</button>`).join('')}</div>`;
+ const op=(u,t)=>`<div class="card">${esc(t)}<div class="row">${`<button data-a="url" data-u="${esc(u)}">Open</button>`}</div></div>`;
+ if(sq.k==='g')return h+GROUPS.map(g=>op('https://www.facebook.com/search/groups?q='+encodeURIComponent(g),g)).join('');
+ if(sq.k==='x')return h+XP.map(g=>op(CH.x[1](encodeURIComponent(g)),g)).join('');
+ if(sq.k==='y')return h+YT.map(g=>op(CH.yt[1](encodeURIComponent(g)),g)).join('')+'<p class="s">Reply to a real question only.</p>';
+ h+=`<div class="seg" style="flex-wrap:wrap">${['google','x','yt','fbp','tt'].map(k=>`<button class="${sq.ch==k?'on':''}" data-a="ch" data-v="${k}">${CH[k][0]}</button>`).join('')}</div>`;
+ const hr=hitRate(sq.ch);if(hr!=null)h+=`<p class="s">Re-ranked by your hit rate here: ${Math.round(hr*100)}%</p>`;
+ h+=`<div class="row"><select data-q="city"><option value="">All cities</option>${CITIES.map(c=>`<option ${sq.city==c?'selected':''}>${c}</option>`).join('')}</select><select data-q="vert"><option value="">All types</option>${VERTS.map(c=>`<option ${sq.vert==c?'selected':''}>${c}</option>`).join('')}</select></div>`;
+ const all=qrows().filter(r=>r.p>=sq.lvl&&!M.done[sq.ch+'|'+r.q]&&(!sq.city||r.c===sq.city||!r.c)&&(!sq.vert||r.v===sq.vert||!r.v)).sort((a,b)=>sscore(b)-sscore(a)||b.p-a.p);
+ VIEW=all.slice(0,25*sq.pg);
+ h+=VIEW.map((r,i)=>{const pd=M.pend[sq.ch+'|'+r.q];return `<div class="card"><span class="pill ${r.p>=6?'hot':r.p>=4?'warm':''}">${r.p>=6?'Hot':r.p>=4?'Warm':'Cold'}</span> ${esc(r.q)}<div class="s">${phat(r.p)[0]}</div>`+
+  (pd?`<div class="row">${[['asked','asked'],['ignored','ignored'],['checkout_sent','checkout sent'],['skip','skip']].map(([m,n])=>`<button class="o" data-a="mk" data-i="${i}" data-m="${{asked:'a',ignored:'i',checkout_sent:'c',skip:'s'}[m]}">${n}</button>`).join('')}</div>`:`<div class="row"><button data-a="qopen" data-i="${i}">Open on ${CH[sq.ch][0]}</button></div>`)+`</div>`}).join('');
+ if(all.length>VIEW.length)h+=`<button class="o" style="width:100%" data-a="more">More rows</button>`;
+ if(sq.lvl>3)h+=`<button class="o" style="width:100%;margin-top:8px" data-a="lvl">Show more (prior ${sq.lvl-1})</button>`;return h},
+scripts(){const k=SCR.k,c=(a,n)=>`<button class="${k==a?'on':''}" data-a="scat" data-v="${a}">${n}</button>`;
+ let h=`<h2>Scripts</h2><div class="seg">${c('dm','DMs')}${c('call','Close call')}${c('obj','Objections')}</div><select data-sl="1"><option value="">Generic (fill the [brackets])</option>${L.slice(0,80).map(l=>`<option value="${l.id}" ${SCR.lead==l.id?'selected':''}>${esc(l.name||l.business||l.ph)}</option>`).join('')}</select>`;
+ const card=(x,i)=>`<div class="card"><b>${esc(x.t)}</b><div class="pre s" style="color:var(--t)">${esc(sfill(x.x))}</div><button class="o" style="width:100%" data-a="scp" data-i="${i}">Copy</button></div>`;
+ const grp=gs=>gs.map(g=>`<div class="s" style="margin-top:14px"><b>${g}</b></div>`+SLIB.map((x,i)=>x.g===g?card(x,i):'').join('')).join('');
+ if(k==='dm')return h+grp(['Openers','Follow-ups','Closing']);
+ if(k==='obj')return h+grp(['Objections']);
+ return h+`<div class="card"><div class="tm" id="ct">00:00</div><button style="width:100%" data-a="ctime">${CT?'Stop call timer':'Start call timer'}</button><p class="s">A close call runs about 5 minutes. The active step lights up as time passes.</p></div>`+
+  CALL.map(([t,n,x,tip])=>`<div class="card" data-t="${t}"><b>${n}</b><div class="pre">${esc(sfill(x))}</div><div class="s">${esc(tip)}</div></div>`).join('')+
+  `<div class="card"><button style="width:100%" data-a="ccg">Copy checkout link</button></div>`+grp(['Call extras'])},
+more(){const W=[...M.wins].sort((a,b)=>((b.r+1)/(b.n+2)-(b.n>=20&&!b.r?9:0))-((a.r+1)/(a.n+2)-(a.n>=20&&!a.r?9:0)));
+ return `<h2>More</h2><div class="card"><label>Capture checkout</label><input id="c1" value="${esc(S.co1)}"><label>Education checkout</label><input id="c2" value="${esc(S.co2)}"><label>Daily cap</label><input id="cap" type="number" value="${S.cap}">
+ <label>Yadaphone link (optional). Use {phone} for the number. Empty hides the button.</label><input id="yd" value="${esc(S.yada)}" placeholder="yadaphone://call?number={phone}">
+ <label>Price shown in scripts (example: KES 3,500)</label><input id="pr" value="${esc(S.price)}"><label><input type="checkbox" id="vv" ${S.verse?'checked':''}> Show verse</label><button style="width:100%;margin-top:8px" onclick="setg()">Save settings</button></div>
+ <div class="card"><b>Daily boost: 5 reminders a day</b><p class="s">${NAT?'Bible verses and affirmations arrive at these times. On Samsung, set Settings > Apps > Pipeline OS > Battery > Unrestricted so they arrive on time.':'Reminders work in the installed Android app.'}</p>
+ <label><input type="checkbox" id="nt" ${S.nt?'checked':''}> Reminders on</label><label>Content</label><select id="nmix">${[['both','Verses and affirmations'],['verse','Bible verses only'],['aff','Affirmations only']].map(([v,n])=>`<option value="${v}" ${S.nmix==v?'selected':''}>${n}</option>`).join('')}</select>
+ <div class="row">${[0,1,2,3,4].map(i=>`<input type="time" id="nt${i}" value="${(S.ntimes||[])[i]||''}">`).join('')}</div>
+ <div class="row"><button onclick="setg()">Save and schedule</button><button class="o" onclick="ntest()">Send test</button></div><div class="s">Bible text: King James Version (public domain).</div></div>
+ <div class="card"><b>8 intake questions</b><textarea id="ik" rows="9">${esc(S.intake)}</textarea><div class="row"><button onclick="S.intake=$('#ik').value;save();toast('Saved')">Save</button><button class="o" onclick="copy($('#ik').value)">Copy</button></div></div>
+ <div class="card"><b>Wins board</b><label>They wrote</label><textarea id="w1" rows="2"></textarea><label>I sent</label><textarea id="w2" rows="2"></textarea><label>Result</label><input id="w3"><button style="width:100%;margin-top:8px" data-a="winadd">Add win</button></div>
+ ${W.map(w=>`<div class="card ${w.n>=20&&!w.r?'dim':''}"><div class="s">They wrote: ${esc(w.wrote)}</div><div>${esc(w.sent)}</div><div class="s">${esc(w.res)} · ${w.n} sends, ${w.r} replies${w.n>=20&&!w.r?' · sunk':''}</div><div class="row"><button class="o" data-a="wins" data-w="${w.id}" data-k="n">+ send</button><button class="o" data-a="wins" data-w="${w.id}" data-k="r">+ reply</button><button class="o" data-a="wins" data-w="${w.id}" data-k="use">Use as A</button><button class="o" data-a="wins" data-w="${w.id}" data-k="del">Delete</button></div></div>`).join('')}
+ <button class="o" style="width:100%" onclick="exp()">Export pipeline CSV</button>`}};
+function render(){$('#m').innerHTML=R[tab]();setTimeout(()=>{if(CT)ctick()});$('#n').innerHTML=[['home','Home'],['pipe','Pipeline'],['scripts','Scripts'],['search','Search'],['more','More']].map(([k,n])=>`<button class="${tab==k?'on':''}" data-a="tab" data-v="${k}">${n}</button>`).join('')}
+function qdial(){const p=norm($('#qd').value);$('#qr').innerHTML=p?`<a href="tel:+${p}"><button>Call</button></a><a href="${wal(p)}" target="_blank" rel="noopener"><button class="o">WhatsApp</button></a>${S.yada?`<a href="${esc(S.yada.replace(/{phone}/g,p))}"><button class="o">Yadaphone</button></a>`:''}`:'<span class="s">Enter a Kenya number</span>'}
+function setg(){S.co1=$('#c1').value.trim();S.co2=$('#c2').value.trim();S.cap=+$('#cap').value||20;S.yada=$('#yd').value.trim();S.verse=$('#vv').checked;S.price=$('#pr').value.trim();S.nt=$('#nt').checked;S.nmix=$('#nmix').value;S.ntimes=[0,1,2,3,4].map(i=>$('#nt'+i).value||DEF.ntimes[i]);save();toast('Saved');render();boost()}
+function exp(){const c=['name,business,phone,city,notes,status',...L.map(l=>[l.name,l.business,l.ph,l.city,l.notes,l.st].map(x=>'"'+String(x||'').replace(/"/g,'""')+'"').join(','))].join('\n');if(NAT){NB.Share.share({title:'Pipeline export',text:c,dialogTitle:'Export pipeline'}).catch(()=>copy(c));return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));a.download='pipeline.csv';a.click()}
+function csv(t){const r=[];let row=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch=='"'&&t[i+1]=='"'){c+='"';i++}else if(ch=='"')q=false;else c+=ch}else if(ch=='"')q=true;else if(ch==','||ch==';'){row.push(c);c=''}else if(ch=='\n'||ch=='\r'){if(ch=='\r'&&t[i+1]=='\n')i++;row.push(c);r.push(row);row=[];c=''}else c+=ch}if(c||row.length){row.push(c);r.push(row)}return r.filter(x=>x.some(y=>y.trim()))}
+async function load(f){if(!f)return;let rows;
+ if(/\.xlsx?$/i.test(f.name)){if(!window.XLSX)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.append(s)}).catch(()=>toast('Excel needs data once. Save as CSV instead.'));
+  if(!window.XLSX)return;const wb=XLSX.read(await f.arrayBuffer());rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''})}
+ else rows=csv(await f.text());
+ if(rows.length<2)return toast('No rows found');const H=rows[0].map(String),F=['name','business','phone','city','notes'];
+ const re={name:/name|contact/i,business:/business|company|shop/i,phone:/phone|mobile|tel|whatsapp|number/i,city:/city|town|location/i,notes:/note|desc|category/i};
+ const guess=k=>{const s=H.indexOf(S.mapH[k]);return s>=0?s:H.findIndex(h=>re[k].test(h))};
+ $('#map').innerHTML=F.map(k=>`<label>${k}</label><select id="m_${k}"><option value="-1">-</option>${H.map((h,i)=>`<option value="${i}" ${guess(k)==i?'selected':''}>${esc(h)}</option>`).join('')}</select>`).join('')+`<button style="width:100%;margin-top:8px" id="go">Import ${rows.length-1} rows</button>`;
+ $('#go').onclick=()=>{const ix=Object.fromEntries(F.map(k=>[k,+$('#m_'+k).value])),g=(r,k)=>ix[k]>=0?String(r[ix[k]]||'').trim():'';let add=0,upd=0;
+  F.forEach(k=>S.mapH[k]=ix[k]>=0?H[ix[k]]:'');
+  rows.slice(1).forEach(r=>{const ph=norm(g(r,'phone')),o={name:g(r,'name'),business:g(r,'business'),city:g(r,'city'),notes:g(r,'notes'),ph};
+   const ex=ph&&L.find(l=>l.ph===ph);if(ex){Object.assign(ex,o);upd++}else{L.push({...o,id:Date.now()+(Math.random()*1e6|0),st:'new',h:{}});add++}});
+  save();toast(`${add} new, ${upd} kept`);render()}}
+(async()=>{await idb();S={...DEF,...(await get('S')||{})};S.sc={...SC,...S.sc};L=(await get('L')||[]).map(l=>({...l,h:l.h||{}}));D=await get('days')||{};M={...M,...(await get('M')||{})};render();
+ if(!NAT&&'serviceWorker'in navigator)navigator.serviceWorker.register("/sw.js");if(NAT){boost();NB.App.addListener('appStateChange',x=>{if(x.isActive)boost()})}
+ if(!NAT&&!localStorage.fr){localStorage.fr=1;setTimeout(()=>alert('Install: Chrome menu → Add to Home screen. Samsung Internet → Add page to → Home screen.'),600)}})();
+</script></body></html>
